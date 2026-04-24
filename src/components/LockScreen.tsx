@@ -20,10 +20,35 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
   const opacity = useTransform(x, [0, unlockThreshold], [1, 0]);
   const textX = useTransform(x, [0, unlockThreshold], [0, 20]);
 
+  const playSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const now = audioCtx.currentTime;
+
+      // High-end dual chime (Crystal Chime)
+      [880, 1320].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        gain.gain.setValueAtTime(0, now + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.08, now + i * 0.1 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.6);
+      });
+    } catch (e) {
+      console.error("Audio synthesis failed:", e);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = x.on("change", (latest) => {
       if (latest >= unlockThreshold && !isUnlocked) {
         setIsUnlocked(true);
+        playSound();
         setTimeout(onUnlock, 500);
       }
     });
@@ -33,7 +58,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
   return (
     <motion.div 
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0, y: -100 }}
+      exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
       transition={{ duration: 0.8, ease: [0.43, 0.13, 0.23, 0.96] }}
       className="fixed inset-0 z-50 flex flex-col items-center justify-between py-24 overflow-hidden bg-black"
       id="lock-screen"
@@ -45,11 +70,11 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
           muted
           loop
           playsInline
-          className="object-cover w-full h-full opacity-60 brightness-75"
+          className="object-cover w-full h-full opacity-40 brightness-50"
         >
           <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-architectural-lines-in-black-and-white-42562-large.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black" />
       </div>
 
       {/* Time & Date Header */}
@@ -57,48 +82,59 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         <motion.div
            initial={{ y: 20, opacity: 0 }}
            animate={{ y: 0, opacity: 1 }}
-           transition={{ delay: 0.2 }}
-           className="text-[100px] md:text-[140px] font-serif leading-none tracking-tighter opacity-90"
+           transition={{ delay: 0.2, duration: 1 }}
+           className="text-[100px] md:text-[160px] font-serif leading-none tracking-tighter opacity-90 select-none"
         >
           {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </motion.div>
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-lg md:text-xl font-sans font-light tracking-[0.4em] uppercase text-white/60"
+          transition={{ delay: 0.4, duration: 1 }}
+          className="text-sm md:text-base font-sans font-light tracking-[0.6em] uppercase text-white/40 mt-4 select-none"
         >
           {new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
         </motion.div>
       </div>
 
       {/* Slide to Unlock */}
-      <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center gap-12">
+      <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center gap-16">
         <motion.div
-           initial={{ scale: 0.9, opacity: 0 }}
-           animate={{ scale: 1, opacity: 1 }}
-           transition={{ delay: 0.5 }}
-           className="relative flex items-center h-20 p-2 bg-[#E9E7E2]/10 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden"
-           style={{ width: slideWidth + 100 }}
+           initial={{ y: 40, opacity: 0 }}
+           animate={{ y: 0, opacity: 1 }}
+           transition={{ delay: 0.6, duration: 0.8 }}
+           className="relative flex items-center h-16 p-1.5 bg-white/[0.03] backdrop-blur-2xl rounded-full border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden"
+           style={{ width: slideWidth + 80 }}
            ref={constraintsRef}
         >
+          {/* Subtle Progress Track */}
+          <motion.div 
+            className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-white/10 to-white/0 rounded-full"
+            style={{ width: x, opacity }}
+          />
+
           {/* Shimmer Text */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-light tracking-[0.2em] uppercase text-[#E9E7E2]/40 animate-pulse">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <motion.span 
+              style={{ opacity, x: textX }}
+              className="text-[11px] font-light tracking-[0.4em] uppercase text-white/30"
+            >
               Slide to Unlock
-            </span>
+            </motion.span>
           </div>
 
           <motion.div
             drag="x"
-            dragConstraints={{ left: 0, right: slideWidth + handleSize - 18 }}
-            dragElastic={0}
+            dragConstraints={{ left: 0, right: slideWidth + handleSize - 40 }}
+            dragElastic={0.05}
             dragMomentum={false}
-            className="h-full aspect-square bg-[#E9E7E2] rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-xl z-30"
+            className="h-full aspect-square bg-gradient-to-br from-white via-white/90 to-white/60 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-[0_4px_24px_rgba(0,0,0,0.3)] z-30"
             id="unlock-handle"
             style={{ x }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <ChevronRight className="text-black w-8 h-8" />
+            <ChevronRight className="text-black w-6 h-6 stroke-[1.5]" />
           </motion.div>
         </motion.div>
 
@@ -106,16 +142,17 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         <motion.div
            initial={{ opacity: 0 }}
            animate={{ opacity: 1 }}
-           transition={{ delay: 0.8 }}
-           className="flex gap-8 text-[10px] items-center uppercase tracking-[0.5em] text-[#E9E7E2]/30"
+           transition={{ delay: 1, duration: 1 }}
+           className="flex gap-12 text-[9px] items-center uppercase tracking-[0.8em] text-white/20 select-none pb-4"
         >
-          <span>Architecture</span>
-          <div className="w-1 h-1 rounded-full bg-[#E9E7E2]/30" />
-          <span>Growth</span>
-          <div className="w-1 h-1 rounded-full bg-[#E9E7E2]/30" />
-          <span>Vision</span>
+          <span className="hover:text-white/40 transition-colors cursor-default">Precision</span>
+          <div className="w-[1px] h-3 bg-white/10 rotate-12" />
+          <span className="hover:text-white/40 transition-colors cursor-default">Harmony</span>
+          <div className="w-[1px] h-3 bg-white/10 rotate-12" />
+          <span className="hover:text-white/40 transition-colors cursor-default">Escape</span>
         </motion.div>
       </div>
     </motion.div>
+
   );
 }
