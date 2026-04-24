@@ -143,13 +143,9 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
            initial={{ opacity: 0 }}
            animate={{ opacity: 1 }}
            transition={{ delay: 1, duration: 1 }}
-           className="flex gap-12 text-[9px] items-center uppercase tracking-[0.8em] text-white/20 select-none pb-4"
+           className="text-[9px] uppercase tracking-[0.8em] text-white/20 select-none pb-4"
         >
-          <span className="hover:text-white/40 transition-colors cursor-default">Precision</span>
-          <div className="w-[1px] h-3 bg-white/10 rotate-12" />
-          <span className="hover:text-white/40 transition-colors cursor-default">Harmony</span>
-          <div className="w-[1px] h-3 bg-white/10 rotate-12" />
-          <span className="hover:text-white/40 transition-colors cursor-default">Escape</span>
+          <span>From one to everyone</span>
         </motion.div>
       </div>
     </motion.div>
